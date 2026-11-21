@@ -9,24 +9,39 @@
             margin: 0;
             overflow: hidden;
             background-color: #111;
-            font-family: sans-serif;
+            font-family: Arial, sans-serif;
         }
-        #info {
+        #hud {
             position: absolute;
-            top: 10px;
-            left: 10px;
+            top: 15px;
+            left: 15px;
             color: white;
-            background: rgba(0,0,0,0.7);
-            padding: 10px;
-            border-radius: 5px;
+            background: rgba(0, 0, 0, 0.75);
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            line-height: 1.6;
             pointer-events: none;
+            border-left: 4px solid #2ecc71;
+        }
+        #hud b {
+            color: #2ecc71;
         }
     </style>
 </head>
 <body>
-    <div id="info">Sterowanie: W / S / A / D lub Strzałki</div>
+    <div id="hud">
+        <b>STEROWANIE:</b><br>
+        <b>W / S / A / D</b> – Ruch i obracanie<br>
+        <b>1</b> – Zwykłe chodzenie<br>
+        <b>2</b> – Tryb z pistoletem<br>
+        <b>3</b> – Tryb z karabinem<br>
+        <b>4</b> – Pływanie<br>
+        <b>F</b> – Cios (Boks)<br>
+        <b>G</b> – Otrzymanie ciosu (Uppercut)<br>
+        <b>K</b> – Śmierć (Restart po chwili)
+    </div>
 
-    <!-- Importujemy Three.js oraz loader do plików glTF przez nowoczesne moduły ES -->
     <script type="importmap">
         {
           "imports": {
