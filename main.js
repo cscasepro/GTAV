@@ -36,6 +36,7 @@ let weaponType = 'fists'; // 'fists' lub 'gun'
 let isWheelOpen = false;
 let isLockedInAction = false;
 let isDead = false;
+let idleTimer = 0; // Licznik do losowania Idle
 
 const keys = { w: false, s: false, a: false, d: false };
 const loader = new FBXLoader();
@@ -57,7 +58,7 @@ function playAnimation(name, loop = true, fadeDuration = 0.2) {
     activeAction = nextAction;
 }
 
-// 4. Ładowanie modelu i wszystkich animacji (w tym nowych z Twojego screena)
+// 4. Ładowanie modelu i wszystkich animacji (w tym Idle i Stop Walking)
 loader.load('Walking.fbx', (object) => {
     franklin = object;
     franklin.scale.set(0.01, 0.01, 0.01);
@@ -76,14 +77,17 @@ loader.load('Walking.fbx', (object) => {
         activeAction.paused = true;
     }
 
-    // Ładowanie dodatkowych animacji
+    // Ładowanie dodatkowych animacji ze screenów użytkownika
     loadExtraAnimation('Pistol Walk.fbx', 'pistolWalk');
     loadExtraAnimation('Boxing.fbx', 'boxing');
-    loadExtraAnimation('Gunplay.fbx', 'gunplay'); // Strzelanie / celowanie
+    loadExtraAnimation('Gunplay.fbx', 'gunplay');
+    loadExtraAnimation('Idle.fbx', 'idle1');
+    loadExtraAnimation('Breathing Idle.fbx', 'idle2');[cite: 5]
+    loadExtraAnimation('Stop Walking.fbx', 'stopWalk');[cite: 5]
     loadExtraAnimation('Receive Uppercut To The Face.fbx', 'hit1');
     loadExtraAnimation('Walking To Dying.fbx', 'hit2');
-    loadExtraAnimation('Falling Forward Death.fbx', 'death1');
-    loadExtraAnimation('Falling Back Death.fbx', 'death2');
+    loadExtraAnimation('Falling Forward Death.fbx', 'death1');[cite: 4]
+    loadExtraAnimation('Falling Back Death.fbx', 'death2');[cite: 4]
 }, undefined, (err) => console.error('Błąd ładowania:', err));
 
 function loadExtraAnimation(filename, actionName) {
@@ -94,11 +98,11 @@ function loadExtraAnimation(filename, actionName) {
     }, undefined, (err) => console.warn(`Brak pliku ${filename}`));
 }
 
-// Jednorazowe akcje (atak, postrzał)
-function triggerAction(actionName, duration = 0, callback = null) {
+// Funkcja jednorazowych akcji (np. Stop Walking, Cios, Trafienie)
+function triggerAction(actionName, duration = 0, callback = null, fade = 0.15) {
     if (!actions[actionName] || isDead) return;
     isLockedInAction = true;
-    playAnimation(actionName, false, 0.1);
+    playAnimation(actionName, false, fade);
 
     const onFinished = (e) => {
         if (e.action === actions[actionName]) {
@@ -109,7 +113,6 @@ function triggerAction(actionName, duration = 0, callback = null) {
     };
     mixer.addEventListener('finished', onFinished);
 
-    // Zabezpieczenie czasowe, gdyby animacja nie zgłosiła końca
     if (duration > 0) {
         setTimeout(() => {
             isLockedInAction = false;
@@ -127,13 +130,11 @@ window.addEventListener('keydown', (e) => {
     if (key === 'a' || key === 'arrowleft') keys.a = true;
     if (key === 'd' || key === 'arrowright') keys.d = true;
 
-    // Koło wyboru broni pod F
     if (key === 'f') {
         isWheelOpen = true;
         document.getElementById('weapon-wheel').style.display = 'block';
     }
 
-    // Zmiana broni strzałkami góra/dół gdy koło jest otwarte
     if (isWheelOpen) {
         if (key === 'arrowup' || key === 'w') {
             weaponType = 'fists';
@@ -146,28 +147,27 @@ window.addEventListener('keydown', (e) => {
         }
     }
 
-    // Losowe trafienie / postrzał pod klawiszem G
     if (key === 'g') {
         const hits = ['hit1', 'hit2'];
         const randomHit = hits[Math.floor(Math.random() * hits.length)];
         triggerAction(randomHit, 1.0);
     }
 
-    // Śmierć (losowa animacja upadku) pod klawiszem K
     if (key === 'k' && !isDead) {
         isDead = true;
         const deaths = ['death1', 'death2'];
         const randomDeath = deaths[Math.floor(Math.random() * deaths.length)];
         playAnimation(randomDeath, false, 0.2);
 
-        // Automatyczne wstanie po 3 sekundach
         setTimeout(() => {
             isDead = false;
             isLockedInAction = false;
-            playAnimation('walk', true, 0.3);
+            playAnimation('idle1', true, 0.3);
         }, 3000);
     }
 });
+
+let wasMovingLastFrame = false;
 
 window.addEventListener('keyup', (e) => {
     const key = e.key.toLowerCase();
@@ -176,20 +176,17 @@ window.addEventListener('keyup', (e) => {
     if (key === 'a' || key === 'arrowleft') keys.a = false;
     if (key === 'd' || key === 'arrowright') keys.d = false;
 
-    // Zamknięcie koła wyboru broni po puszczeniu F
     if (key === 'f') {
         isWheelOpen = false;
         document.getElementById('weapon-wheel').style.display = 'none';
     }
 });
 
-// Lewy przycisk myszy (LPM) -> Bije lub Strzela (Gunplay)
 window.addEventListener('mousedown', (e) => {
     if (e.button === 0 && !isLockedInAction && !isDead && !isWheelOpen) {
         if (weaponType === 'fists') {
             triggerAction('boxing', 0.8);
         } else if (weaponType === 'gun') {
-            // Strzał / Gunplay
             triggerAction('gunplay', 0.6);
         }
     }
@@ -220,36 +217,57 @@ function animate() {
                 isMoving = true;
             }
 
-            // Wybór animacji ruchu w zależności od wybranej broni
             let currentWalk = (weaponType === 'gun' && actions['pistolWalk']) ? 'pistolWalk' : 'walk';
 
             if (isMoving) {
+                wasMovingLastFrame = true;
+                idleTimer = 0; // Resetujemy licznik idle podczas ruchu
                 playAnimation(currentWalk, true);
                 if (activeAction) {
                     activeAction.paused = false;
                     activeAction.timeScale = (keys.s && !keys.w) ? -0.8 : 1.0;
                 }
-            } else if (activeAction) {
-                if (activeAction !== actions[currentWalk]) {
-                    playAnimation(currentWalk, true, 0.1);
+            } else {
+                // Jeśli przed chwilą szedł, a teraz puścił klawisze -> odtwórz animację Stop Walking
+                if (wasMovingLastFrame && actions['stopWalk']) {
+                    wasMovingLastFrame = false;
+                    triggerAction('stopWalk', 0.4, () => {
+                        playAnimation('idle1', true, 0.2);
+                    }, 0.1);
+                } else if (!isLockedInAction) {
+                    // Stoi w miejscu – losujemy animacje Idle (Idle / Breathing Idle)
+                    idleTimer += delta;
+                    if (idleTimer > 6.0) { // Co ok. 6 sekund zmienia animację spoczynku
+                        idleTimer = 0;
+                        const idles = ['idle1', 'idle2'];[cite: 5]
+                        const randomIdle = idles[Math.floor(Math.random() * idles.length)];
+                        if (actions[randomIdle]) {
+                            playAnimation(randomIdle, true, 0.5);
+                        }
+                    } else if (!activeAction || (!activeAction.isRunning() && activeAction !== actions['idle1'] && activeAction !== actions['idle2'])) {
+                        playAnimation('idle1', true, 0.3);
+                    }
                 }
-                activeAction.paused = true;
             }
         }
 
         if (mixer) mixer.update(delta);
 
-        // Blokada Root Motion
         if (rootBone) {
             rootBone.position.x = 0;
             rootBone.position.z = 0;
         }
 
-        // Kamera TPP
-        const cameraOffset = new THREE.Vector3(0, 2.2, -4.5);
+        // Kamera a'la GTA: wyżej (Y = 3.2) i dalej w tył (Z = -6.5)
+        const cameraOffset = new THREE.Vector3(0, 3.2, -6.5);
         cameraOffset.applyQuaternion(franklin.quaternion);
-        camera.position.lerp(franklin.position.clone().add(cameraOffset), 0.1);
-        camera.lookAt(franklin.position.clone().add(new THREE.Vector3(0, 1.4, 0)));
+        const targetCamPos = franklin.position.clone().add(cameraOffset);
+        
+        camera.position.lerp(targetCamPos, 0.1);
+        
+        // Cel kamery lekko nad głową Franklina
+        const lookTarget = franklin.position.clone().add(new THREE.Vector3(0, 1.8, 0));
+        camera.lookAt(lookTarget);
     }
 
     renderer.render(scene, camera);
