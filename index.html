@@ -10,6 +10,7 @@
             overflow: hidden;
             background-color: #111;
             font-family: Arial, sans-serif;
+            user-select: none;
         }
         #hud {
             position: absolute;
@@ -22,24 +23,62 @@
             font-size: 14px;
             line-height: 1.6;
             pointer-events: none;
-            border-left: 4px solid #2ecc71;
+            border-left: 4px solid #f39c12;
         }
         #hud b {
-            color: #2ecc71;
+            color: #f39c12;
+        }
+        /* Koło wyboru broni a'la GTA */
+        #weapon-wheel {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 250px;
+            height: 250px;
+            background: rgba(0, 0, 0, 0.6);
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+        .wheel-option {
+            position: absolute;
+            width: 100px;
+            height: 50px;
+            text-align: center;
+            color: white;
+            font-weight: bold;
+            line-height: 50px;
+            border-radius: 25px;
+            background: rgba(0,0,0,0.8);
+            border: 2px solid #555;
+            transition: 0.1s;
+        }
+        #opt-fists { top: 20px; left: 75px; }
+        #opt-gun { bottom: 20px; left: 75px; }
+        .wheel-option.active {
+            background: #f39c12;
+            color: black;
+            border-color: white;
+            transform: scale(1.1);
         }
     </style>
 </head>
 <body>
     <div id="hud">
         <b>STEROWANIE:</b><br>
-        <b>W / S / A / D</b> – Ruch i obracanie<br>
-        <b>1</b> – Zwykłe chodzenie<br>
-        <b>2</b> – Tryb z pistoletem<br>
-        <b>3</b> – Tryb z karabinem<br>
-        <b>4</b> – Pływanie<br>
-        <b>F</b> – Cios (Boks)<br>
-        <b>G</b> – Otrzymanie ciosu (Uppercut)<br>
-        <b>K</b> – Śmierć (Restart po chwili)
+        <b>W / S / A / D</b> – Ruch<br>
+        <b>Przytrzymaj F</b> – Koło wyboru broni (Pięści / Pistolet)<br>
+        <b>Lewy Przycisk Myszy (LPM)</b> – Atak / Strzał (`Gunplay`)<br>
+        <b>G</b> – Losowe trafienie / Postrzał<br>
+        <b>K</b> – Śmierć (Losowa animacja padnięcia)
+    </div>
+
+    <!-- Koło wyboru broni -->
+    <div id="weapon-wheel">
+        <div id="opt-fists" class="wheel-option active">Pięści</div>
+        <div id="opt-gun" class="wheel-option">Pistolet</div>
     </div>
 
     <script type="importmap">
