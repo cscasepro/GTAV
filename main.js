@@ -32,16 +32,15 @@ let rootBone = null;
 const actions = {};
 let activeAction = null;
 
-let weaponType = 'fists'; // 'fists' lub 'gun'
+let weaponType = 'fists';
 let isWheelOpen = false;
 let isLockedInAction = false;
 let isDead = false;
-let idleTimer = 0; // Licznik do losowania Idle
+let idleTimer = 0;
 
 const keys = { w: false, s: false, a: false, d: false };
 const loader = new FBXLoader();
 
-// Płynne przełączanie animacji
 function playAnimation(name, loop = true, fadeDuration = 0.2) {
     const nextAction = actions[name];
     if (!nextAction) return;
@@ -58,8 +57,10 @@ function playAnimation(name, loop = true, fadeDuration = 0.2) {
     activeAction = nextAction;
 }
 
-// 4. Ładowanie modelu i wszystkich animacji (w tym Idle i Stop Walking)
+// 4. Ładowanie głównego modelu
+console.log("Próbuję załadować Walking.fbx...");
 loader.load('Walking.fbx', (object) => {
+    console.log("Sukces! Model Walking.fbx został załadowany.", object);
     franklin = object;
     franklin.scale.set(0.01, 0.01, 0.01);
     scene.add(franklin);
@@ -75,30 +76,34 @@ loader.load('Walking.fbx', (object) => {
         activeAction = actions['walk'];
         activeAction.play();
         activeAction.paused = true;
+    } else {
+        console.warn("Uwaga: Walking.fbx nie ma w sobie żadnych animacji!");
     }
 
-    // Ładowanie dodatkowych animacji ze screenów użytkownika
+    // Ładowanie reszty plików
     loadExtraAnimation('Pistol Walk.fbx', 'pistolWalk');
     loadExtraAnimation('Boxing.fbx', 'boxing');
     loadExtraAnimation('Gunplay.fbx', 'gunplay');
     loadExtraAnimation('Idle.fbx', 'idle1');
-    loadExtraAnimation('Breathing Idle.fbx', 'idle2');[cite: 5]
-    loadExtraAnimation('Stop Walking.fbx', 'stopWalk');[cite: 5]
+    loadExtraAnimation('Breathing Idle.fbx', 'idle2');
+    loadExtraAnimation('Stop Walking.fbx', 'stopWalk');
     loadExtraAnimation('Receive Uppercut To The Face.fbx', 'hit1');
     loadExtraAnimation('Walking To Dying.fbx', 'hit2');
-    loadExtraAnimation('Falling Forward Death.fbx', 'death1');[cite: 4]
-    loadExtraAnimation('Falling Back Death.fbx', 'death2');[cite: 4]
-}, undefined, (err) => console.error('Błąd ładowania:', err));
+    loadExtraAnimation('Falling Forward Death.fbx', 'death1');
+    loadExtraAnimation('Falling Back Death.fbx', 'death2');
+}, undefined, (err) => {
+    console.error("BŁĄD KRYTYCZNY: Nie udało się załadować Walking.fbx! Sprawdź nazwę pliku na GitHubie.", err);
+});
 
 function loadExtraAnimation(filename, actionName) {
     loader.load(filename, (animObj) => {
         if (animObj.animations && animObj.animations.length > 0) {
             actions[actionName] = mixer.clipAction(animObj.animations[0]);
+            console.log(`Załadowano animację: ${filename}`);
         }
-    }, undefined, (err) => console.warn(`Brak pliku ${filename}`));
+    }, undefined, (err) => console.warn(`Brak pliku lub błąd w: ${filename}`));
 }
 
-// Funkcja jednorazowych akcji (np. Stop Walking, Cios, Trafienie)
 function triggerAction(actionName, duration = 0, callback = null, fade = 0.15) {
     if (!actions[actionName] || isDead) return;
     isLockedInAction = true;
@@ -122,7 +127,7 @@ function triggerAction(actionName, duration = 0, callback = null, fade = 0.15) {
     }
 }
 
-// 5. Obsługa klawiatury i myszy
+// Sterowanie
 window.addEventListener('keydown', (e) => {
     const key = e.key.toLowerCase();
     if (key === 'w' || key === 'arrowup') keys.w = true;
@@ -192,7 +197,7 @@ window.addEventListener('mousedown', (e) => {
     }
 });
 
-// 6. Pętla gry
+// Pętla gry
 const clock = new THREE.Clock();
 
 function animate() {
@@ -221,25 +226,23 @@ function animate() {
 
             if (isMoving) {
                 wasMovingLastFrame = true;
-                idleTimer = 0; // Resetujemy licznik idle podczas ruchu
+                idleTimer = 0;
                 playAnimation(currentWalk, true);
                 if (activeAction) {
                     activeAction.paused = false;
                     activeAction.timeScale = (keys.s && !keys.w) ? -0.8 : 1.0;
                 }
             } else {
-                // Jeśli przed chwilą szedł, a teraz puścił klawisze -> odtwórz animację Stop Walking
                 if (wasMovingLastFrame && actions['stopWalk']) {
                     wasMovingLastFrame = false;
                     triggerAction('stopWalk', 0.4, () => {
                         playAnimation('idle1', true, 0.2);
                     }, 0.1);
                 } else if (!isLockedInAction) {
-                    // Stoi w miejscu – losujemy animacje Idle (Idle / Breathing Idle)
                     idleTimer += delta;
-                    if (idleTimer > 6.0) { // Co ok. 6 sekund zmienia animację spoczynku
+                    if (idleTimer > 6.0) {
                         idleTimer = 0;
-                        const idles = ['idle1', 'idle2'];[cite: 5]
+                        const idles = ['idle1', 'idle2'];
                         const randomIdle = idles[Math.floor(Math.random() * idles.length)];
                         if (actions[randomIdle]) {
                             playAnimation(randomIdle, true, 0.5);
@@ -258,14 +261,11 @@ function animate() {
             rootBone.position.z = 0;
         }
 
-        // Kamera a'la GTA: wyżej (Y = 3.2) i dalej w tył (Z = -6.5)
         const cameraOffset = new THREE.Vector3(0, 3.2, -6.5);
         cameraOffset.applyQuaternion(franklin.quaternion);
         const targetCamPos = franklin.position.clone().add(cameraOffset);
         
         camera.position.lerp(targetCamPos, 0.1);
-        
-        // Cel kamery lekko nad głową Franklina
         const lookTarget = franklin.position.clone().add(new THREE.Vector3(0, 1.8, 0));
         camera.lookAt(lookTarget);
     }
